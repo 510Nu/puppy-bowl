@@ -1,98 +1,187 @@
-/*             Feel free to use this skeleton I have provided or delete everything and do your own thing!             */
+const API_URL = `https://fsa-puppy-bowl.herokuapp.com/api/2605-DEE`;
 
-//If you would like to, you can create a variable to store the API_URL here.
-//This is optional. if you do not want to, skip this and move on.
+let players = [];
+let selectedPlayer = null;
 
-/////////////////////////////
-/*This looks like a good place to declare any state or global variables you might need*/
+async function fetchPlayers() {
+  try {
+    const response = await fetch(`${API_URL}/players`);
+    const result = await response.json();
+    players = result.data.players;
+    render();
+  } catch (error) {
+    console.error(`Failed to fetch data`, error);
+  }
+}
 
-////////////////////////////
+async function fetchSinglePlayer(id) {
+  try {
+    const response = await fetch(`${API_URL}/players/${id}`);
+    const result = await response.json();
+    selectedPlayer = result.data.player;
+    render();
+  } catch (error) {
+    console.error(`Error fetching ID ${id}:`, error);
+  }
+}
 
-/**
- * Fetches all players from the API.
- * This function should not be doing any rendering
- * Instead, this function should be keeping our state up to date
- */
-const fetchAllPlayers = async () => {
-  //TODO
-};
+async function removePlayer(id) {
+  try {
+    const response = await fetch(`${API_URL}/players/${id}`, {
+      method: "DELETE",
+    });
+    await response.json();
 
-/**
- * Fetches a single player from the API.
- * This function should not be doing any rendering
- * Instead, this function should be keeping our state up to date
- * @param {number} playerId
- */
-/**
- * Note: In order to call fetchSinglePlayer() a player's id is required.
- * Unless we know the id of the player we are trying to fetch, we cannot call fetchSinglePlayer()
- */
-const fetchSinglePlayer = async (playerId) => {
-  //TODO
-};
+    selectedPlayer = null;
+    await fetchPlayers();
+  } catch (error) {
+    console.error(`Failed to remove player ID ${id}:`, error);
+  }
+}
 
-/**
- * Adds a new player to the roster via the API.
- * Once a player is added to the database, the new player
- * should appear in the all players page without having to refresh
- * @param {Object} newPlayer the player to add
- */
-/* Note: we need data from our user to be able to add a new player
- * What does that sound like we need?
- */
-/**
- * Note#2: addNewPlayer() expects you to pass in a
- * new player object when you call it. How can we
- * create a new player object and then pass it to addNewPlayer()?
- */
+function puppyRosterComponent() {
+  if (players.length === 0) {
+    return `<p>Loading the puppy roster...</p>`;
+  }
 
-const addNewPlayer = async (newPlayer) => {
-  //TODO
-};
+  return players
+    .map(
+      (player) => `
+      <div class="puppy-card" data-id="${player.id}">
+        <h3>${player.name}</h3>
+        <img src="${player.imageUrl}" alt="${player.name}" class="puppy-thumb" />
+      </div>
+    `,
+    )
+    .join("");
+}
 
-/**
- * Removes a player from the roster via the API.
- * Once the player is removed from the database,
- * the player should also be removed from our view without refreshing
- * @param {number} playerId the ID of the player to remove
- */
-/**
- * Note: In order to call removePlayer() a player's id is required.
- * Unless we know the id of the player we are trying to remove, we cannot call removePlayer()
- */
+function puppyDetailsComponent() {
+  if (selectedPlayer === null) {
+    return `<p class="placeholder-msg">Please select a puppy from the roster to view their stats!</p>`;
+  }
 
-const removePlayer = async (playerId) => {
-  //TODO
-};
+  let teamName = "Unassigned";
+  if (selectedPlayer.team) {
+    teamName = selectedPlayer.team.name;
+  }
 
-/**
- * Updates html to display a list of all players or a single player page.
- *
- * If there are no players, a corresponding message is displayed instead.
- *
- * Each player in the all player list is displayed with the following information:
- * - name
- * - image (with alt text of the player's name)
- *
- * Additionally, for each player we should be able to:
- * - See details of a single player. The page should show
- *    specific details about the player clicked such as: name, id, breed, status, image, and team or unassigned if no team
- * - Remove from roster. When a button is clicked, should remove the player
- *    from the database and our current view without having to refresh
- *
- */
-const render = () => {
-  // TODO
-};
+  return `
+    <div class="details-card">
+      <h2>${selectedPlayer.name} (Selected)</h2>
+      <img src="${selectedPlayer.imageUrl}" alt="${selectedPlayer.name}" class="puppy-large-img" />
+      <p><strong>ID:</strong> ${selectedPlayer.id}</p>
+      <p><strong>Breed:</strong> ${selectedPlayer.breed}</p>
+      <p><strong>Status:</strong> ${selectedPlayer.status}</p>
+      <p><strong>Team:</strong> ${teamName}</p>
+      <button id="delete-btn" data-id="${selectedPlayer.id}">Remove from Roster</button>
+    </div>
+  `;
+}
 
-/**
- * Initializes the app by calling render
- * HOWEVER....
- */
-const init = async () => {
-  //Before we render, what do we always need?
+function puppyFormComponent() {
+  return `
+    <form id="add-puppy-form">
+      <h2>Add a New Competitor</h2>
+      <div class="form-group">
+        <label for="puppy-name">Puppy Name:</label>
+        <input type="text" id="puppy-name" required />
+      </div>
+      <div class="form-group">
+        <label for="puppy-breed">Breed:</label>
+        <input type="text" id="puppy-breed" required />
+      </div>
+      <div class="form-group">
+        <label for="puppy-team">Team:</label>
+        <input type="text" id="puppy-team" required />
+      </div>
+      <div class="form-group">
+        <label for="puppy-image">Image URL:</label>
+        <input type="url" id="puppy-image" placeholder="Upload your puppy picture" />
+      </div>
+      <button type="submit">Add to Roster</button>
+    </form>
+  `;
+}
 
-  render();
-};
+function render() {
+  const app = document.querySelector("#app");
 
-init();
+  app.innerHTML = `
+    <header>
+      <h1>Puppy Bowl Tournament Manager</h1>
+    </header>
+
+    <main class="admin-container">
+      <section class="form-column">
+        ${puppyFormComponent()}
+      </section>
+
+      <section class="roster-column">
+        <h2>Current Contestants</h2>
+        <div class="roster-grid">
+          ${puppyRosterComponent()}
+        </div>
+      </section>
+
+      <section class="details-column">
+        <h2>Player Profile</h2>
+        <div id="details-view">
+          ${puppyDetailsComponent()}
+        </div>
+      </section>
+    </main>
+  `;
+
+  const rosterGrid = document.querySelector(".roster-grid");
+  if (rosterGrid) {
+    rosterGrid.addEventListener("click", async function (event) {
+      const clickedCard = event.target.closest(".puppy-card");
+      if (clickedCard) {
+        const puppyId = clickedCard.getAttribute("data-id");
+        await fetchSinglePlayer(puppyId);
+      }
+    });
+  }
+
+  const deleteBtn = document.querySelector("#delete-btn");
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", async function () {
+      const puppyId = deleteBtn.getAttribute("data-id");
+      await removePlayer(puppyId);
+    });
+  }
+
+  const form = document.querySelector("#add-puppy-form");
+  if (form) {
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+
+      const nameInput = document.querySelector("#puppy-name");
+      const breedInput = document.querySelector("#puppy-breed");
+
+      try {
+        const response = await fetch(`${API_URL}/players`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: nameInput.value,
+            breed: breedInput.value,
+          }),
+        });
+
+        await response.json();
+
+        nameInput.value = "";
+        breedInput.value = "";
+        await fetchPlayers();
+      } catch (error) {
+        console.error("Failed to add new puppy:", error);
+      }
+    });
+  }
+}
+
+fetchPlayers();
